@@ -63,6 +63,13 @@ decoder.
 `test-vectors/` holds the canonical capsule from FORMAT.md §9 — synthetic, 44
 bytes, no speech in it. An implementation that reproduces it is compatible.
 
+`make_card.py` reads the engraved text from `card_text.txt` at the project root
+(`size|weight|text` per row, an empty text field being a spacer). That file is
+not committed — whose card it is does not belong in a repository. Without it the
+tool falls back to placeholders and says `card text  PLACEHOLDER` in its run
+summary, because a card marked "YOUR NAME" is a wasted blank and the laser does
+not undo.
+
 Once the site is live, `check_deploy.py` asserts the things that only exist when
 Cloudflare is serving it — MIME types, security headers, the 404, and whether the
 bytes on the wire are the bytes in git:
@@ -108,6 +115,7 @@ tools/encode_voice.py         WAV -> Codec2 -> capsule -> CVQR1: text
 tools/decode_voice.py         the inverse, back to WAV
 tools/make_qr.py              QR + module-pitch table for candidate sizes
 tools/read_qr.py              scan an image back, with photo rehabilitation
+tools/make_card.py            card artwork, two LightBurn layers
 tools/make_coupon.py          parameter-sweep coupon plate for laser settings
 tools/bundle_decoder.py       decoder/ -> one self-contained html
 tools/selftest.py             adversarial checks

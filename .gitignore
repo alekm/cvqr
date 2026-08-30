@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
+.venv/
 
 # Local drag-and-drop bundle; tools rebuild it on demand.
 cvqr-app-deploy.zip
@@ -10,8 +11,9 @@ cvqr-app-deploy.zip
 # artwork — is not part of it, and lives only in the local working copy and
 # the offline archive copies.
 #
-# make_card.py is excluded because its default card text is specific to that
-# artifact. Nothing else here is.
+# card_text.txt holds the text engraved on that specific card. make_card.py
+# itself is generic and is committed; without the file it falls back to
+# placeholders and says so in its run summary.
 #
 # A repository cannot be un-published. Keep it that way.
 # ---------------------------------------------------------------------------
@@ -20,7 +22,7 @@ qr/
 artwork/
 docs/
 HANDOFF.md
-tools/make_card.py
+card_text.txt
 
 # Derived audio, wherever it lands.
 *.wav
