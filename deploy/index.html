@@ -10545,37 +10545,122 @@ if (typeof module !== 'undefined') module.exports = CVQR;
     }
   }
 
-  /* Read a QR from an image, trying progressively harder before giving up. */
-  async function handleImage(file) {
-    $('status').textContent = 'Reading image…';
-    let bitmap;
+  /* Decode a file to something drawable.
+   *
+   * createImageBitmap is the fast path, but Safari rejects some camera files
+   * through it — HEIC in particular — so fall back to an <img> and a blob URL,
+   * which goes through the platform's own image decoder and handles anything
+   * the OS can display.
+   */
+  async function loadImage(file) {
     try {
-      bitmap = await createImageBitmap(file);
+      const bmp = await createImageBitmap(file);
+      return { src: bmp, w: bmp.width, h: bmp.height, close: () => bmp.close && bmp.close() };
     } catch {
-      $('status').textContent = '';
-      return fail('That file could not be opened as an image.');
+      const url = URL.createObjectURL(file);
+      try {
+        const img = await new Promise((res, rej) => {
+          const i = new Image();
+          i.onload = () => res(i);
+          i.onerror = () => rej(new Error('decode failed'));
+          i.src = url;
+        });
+        return { src: img, w: img.naturalWidth, h: img.naturalHeight,
+                 close: () => URL.revokeObjectURL(url) };
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        throw e;
+      }
     }
-    const attempts = [1, 2, 0.5];
-    for (const scale of attempts) {
-      const w = Math.round(bitmap.width * scale), h = Math.round(bitmap.height * scale);
-      if (w < 32 || h < 32 || w > 8000 || h > 8000) continue;
-      const cv = document.createElement('canvas');
+  }
+
+  /* One scan attempt at a given pixel size. Returns the decoded text or null.
+   *
+   * The canvas is explicitly zeroed afterwards. iOS caps total canvas memory
+   * per page, and a 12-megapixel photo is ~48 MB per canvas; leaving three of
+   * them alive is enough for the next getContext to return null on a phone,
+   * which is how "nothing happened at all" used to occur.
+   */
+  function scanAt(image, w, h) {
+    const cv = document.createElement('canvas');
+    try {
       cv.width = w; cv.height = h;
       const g = cv.getContext('2d', { willReadFrequently: true });
-      g.drawImage(bitmap, 0, 0, w, h);
+      if (!g) return null;                        // out of canvas memory
+      g.drawImage(image.src, 0, 0, w, h);
       const img = g.getImageData(0, 0, w, h);
       for (const opts of [{}, { inversionAttempts: 'invertFirst' }]) {
         const res = jsQR(img.data, w, h, opts);
-        if (res && res.data) {
-          $('status').textContent = '';
-          $('paste').value = res.data;
-          return handleText(res.data);
+        if (res && res.data) return res.data;
+      }
+      return null;
+    } finally {
+      cv.width = 0; cv.height = 0;
+    }
+  }
+
+  const MAX_PIXELS = 16000000;   // a single canvas above this fails on iOS
+
+  /* Read a QR from an image, trying progressively harder before giving up.
+   *
+   * Downscale FIRST. A phone photo is far larger than a QR reader needs — a
+   * 69-module symbol wants a few hundred pixels, not four thousand — and the
+   * smaller pass is both quicker and less noisy, so it usually wins outright.
+   * Full resolution is the fallback for a code that is small in frame, not the
+   * opening move.
+   */
+  async function handleImage(file) {
+    let image = null;
+    try {
+      $('status').textContent = 'Reading image…';
+      await new Promise((r) => setTimeout(r, 0));   // let that paint first
+
+      try {
+        image = await loadImage(file);
+      } catch {
+        return fail('That file could not be opened as an image.',
+                    'If it came from an iPhone it may be HEIC; sharing or exporting it as JPEG works.');
+      }
+      if (!image.w || !image.h) {
+        return fail('That image has no dimensions this browser can read.');
+      }
+
+      const longest = Math.max(image.w, image.h);
+      const targets = [1400, 2400, longest, longest * 2];
+      const tried = new Set();
+      let n = 0;
+      for (const target of targets) {
+        const scale = Math.min(target / longest, 4);
+        const w = Math.round(image.w * scale), h = Math.round(image.h * scale);
+        const key = w + 'x' + h;
+        if (w < 32 || h < 32 || w * h > MAX_PIXELS || tried.has(key)) continue;
+        tried.add(key);
+
+        $('status').textContent = `Looking for a code… (pass ${++n}, ${w}×${h})`;
+        await new Promise((r) => setTimeout(r, 0));   // keep the UI alive
+
+        let text = null;
+        try {
+          text = scanAt(image, w, h);
+        } catch {
+          continue;                                   // this size failed; try another
+        }
+        if (text) {
+          $('paste').value = text;
+          return handleText(text);
         }
       }
+
+      fail('No QR code found in that image.',
+           'Try a straighter, closer photo with even light. Glare across the code is the usual culprit on metal.');
+    } catch (e) {
+      // Nothing may fail silently here. A photo that does nothing at all is
+      // indistinguishable from a broken page.
+      fail('Something went wrong reading that image.', String(e && e.message || e));
+    } finally {
+      if (image) { try { image.close(); } catch {} }
+      $('status').textContent = '';
     }
-    $('status').textContent = '';
-    fail('No QR code found in that image.',
-         'Try a straighter, closer photo with even light. Glare across the code is the usual culprit on metal.');
   }
 
   /* ---------------------------------------------------------------- play */
