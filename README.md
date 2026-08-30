@@ -63,6 +63,17 @@ decoder.
 `test-vectors/` holds the canonical capsule from FORMAT.md §9 — synthetic, 44
 bytes, no speech in it. An implementation that reproduces it is compatible.
 
+`examples/` holds a real one: a recording of a single spoken word, 488 ms,
+159 characters of payload, with its QR image beside it. It is what the
+decoder's "Try an example" button plays, and it is what makes the end-to-end
+image check in `selftest.py` run in a fresh clone rather than skip. Rebuild it
+with:
+
+```
+python3 tools/encode_voice.py examples/hello.wav --mode 1300 --out examples/hello_1300
+python3 tools/make_qr.py examples/hello_1300.txt --ecc Q --out examples/hello_1300_Q
+```
+
 `make_card.py` reads the engraved text from `card_text.txt` at the project root
 (`size|weight|text` per row, an empty text field being a spacer). That file is
 not committed — whose card it is does not belong in a repository. Without it the
@@ -125,6 +136,7 @@ decoder/                      editable decoder source
 release/cvqr-decoder.html     single-file build
 deploy/                       what Cloudflare Pages serves
 test-vectors/                 the canonical capsule from FORMAT.md §9
+examples/                     a real recording, one word, with its QR
 ```
 
 ## Licensing

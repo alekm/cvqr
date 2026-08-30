@@ -80,7 +80,8 @@
     <h2>Paste the payload</h2>
     <textarea id="paste" spellcheck="false" autocapitalize="off" autocomplete="off"
               placeholder="CVQR1:…"></textarea>
-    <div class="row"><button id="decodeText" class="primary">Decode</button></div>
+    <div class="row"><button id="decodeText" class="primary">Decode</button>
+      <button id="example">Try an example</button></div>
   </section>
 
   <section>
@@ -10436,6 +10437,12 @@ if (typeof module !== 'undefined') module.exports = CVQR;
 
 (() => {
   const $ = (id) => document.getElementById(id);
+
+  /* A real recording rather than a synthetic vector: one spoken word, 488 ms,
+   * 159 characters of payload. It is here so that someone who arrives with
+   * nothing to scan can still hear what the format actually does — which is
+   * most of the argument for the format. */
+  const EXAMPLE = 'CVQR1:3N8SCAW503H0Z.3260000%A0C00X10YTSBA0X8VO7WEWFD%THTTBW9+-AYBN PCHUOFHDDNA.R5M7VJC2.*2B4E6K87K4/LA56J6-C$:UW16%QQ3:RDXUQT09S2 /7C7C$12G3776CTDEA49-1QT3R0-P';
   let codecModule = null;   // lazily instantiated WASM
   let audioCtx = null;      // fallback only; see play()
   let audioEl = null;       // the media element that actually plays on phones
@@ -10779,6 +10786,10 @@ if (typeof module !== 'undefined') module.exports = CVQR;
       const v = $('paste').value;
       if (!v) return fail('Nothing to decode.', 'Paste a payload beginning with CVQR1:');
       handleText(v);
+    });
+    $('example').addEventListener('click', () => {
+      $('paste').value = EXAMPLE;
+      handleText(EXAMPLE);
     });
     $('file').addEventListener('change', (e) => {
       if (e.target.files[0]) handleImage(e.target.files[0]);

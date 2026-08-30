@@ -10,6 +10,7 @@ from cvqr import (MODES, Capsule, CVQRError, b45_decode, b45_encode, from_text, 
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 passed = failed = skipped = 0
+images_read = 0
 
 
 def check(name, cond, detail=""):
@@ -109,10 +110,15 @@ refuses("payload short", lambda: Capsule.parse(blob[:-5]), "payload")
 refuses("missing prefix", lambda: from_text("HELLO WORLD"), "prefix")
 refuses("prefix but junk", lambda: from_text("CVQR1:BB8"), "")
 
-print("\n[7] End-to-end: the committed stand-in recovers from its QR image")
-for mode in ("700C", "1300"):
-    src = ROOT / f"audio/encoded/standin_{mode}.txt"
-    png = ROOT / f"qr/standin_{mode}_Q.png"
+print("\n[7] End-to-end: a QR image recovers its exact payload")
+# The example is committed, so this section actually runs in a fresh clone.
+# The stand-ins are part of the private artifact and skip when absent.
+CASES = [("hello 1300", ROOT / "examples/hello_1300.txt", ROOT / "examples/hello_1300_Q.png")]
+for m in ("700C", "1300"):
+    CASES.append((f"stand-in {m}", ROOT / f"audio/encoded/standin_{m}.txt",
+                  ROOT / f"qr/standin_{m}_Q.png"))
+
+for mode, src, png in CASES:
     if not (src.exists() and png.exists()):
         # A clone of this repository carries the format, the tools and the
         # decoder, but not the private artifact these fixtures came from.
@@ -124,13 +130,19 @@ for mode in ("700C", "1300"):
     if "no QR decoder is installed" in r.stdout + r.stderr:
         skip(f"{mode}: QR image -> exact payload", "no QR engine installed")
     else:
+        images_read += 1
         check(f"{mode}: QR image -> exact payload", "EXACT MATCH" in r.stdout, r.stdout + r.stderr)
 
 summary = f"\n{passed} passed, {failed} failed"
 if skipped:
     summary += f", {skipped} SKIPPED"
 print(summary)
-if skipped:
-    print("\nThe image path was NOT exercised. Install zxing-cpp and pyzbar before\n"
-          "trusting this run to say anything about whether a code scans.")
+if not images_read:
+    # Distinct from "some fixtures were missing": here nothing read an image at
+    # all, so this run says nothing whatever about whether a code scans.
+    print("\nNo image was read. Install zxing-cpp and pyzbar before trusting this\n"
+          "run to say anything about whether a code scans.")
+elif skipped:
+    print(f"\n{images_read} image check(s) ran; the skips above are fixtures this\n"
+          "clone does not carry, which is expected outside the private working copy.")
 sys.exit(1 if failed else 0)

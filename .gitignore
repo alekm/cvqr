@@ -28,3 +28,10 @@ card_text.txt
 *.wav
 *.raw
 *.c2raw
+
+# ...except the committed example. examples/ is a real recording of one word,
+# published deliberately: it gives the test suite a speech fixture that a
+# clone actually has, and gives a stranger something to hear on the site
+# without having anything to scan. The .raw and .c2raw beside it stay out —
+# both are reproducible from the payload.
+!examples/hello.wav
