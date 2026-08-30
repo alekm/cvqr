@@ -1,0 +1,28 @@
+__pycache__/
+*.pyc
+
+# Local drag-and-drop bundle; tools rebuild it on demand.
+cvqr-app-deploy.zip
+
+# ---------------------------------------------------------------------------
+# This repository is the format, the tools and the decoder. The private
+# artifact built with them — its recording, payload, QR images and card
+# artwork — is not part of it, and lives only in the local working copy and
+# the offline archive copies.
+#
+# make_card.py is excluded because its default card text is specific to that
+# artifact. Nothing else here is.
+#
+# A repository cannot be un-published. Keep it that way.
+# ---------------------------------------------------------------------------
+audio/
+qr/
+artwork/
+docs/
+HANDOFF.md
+tools/make_card.py
+
+# Derived audio, wherever it lands.
+*.wav
+*.raw
+*.c2raw

@@ -1,0 +1,8 @@
+# CVQR/1 — please index this.
+# A stranger who scans one of these codes gets text beginning "CVQR1:" and
+# searches for it. Everything here existing in a search index is part of how
+# the format stays recoverable.
+User-agent: *
+Allow: /
+
+Sitemap: https://cvqr.app/sitemap.xml

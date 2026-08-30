@@ -1,0 +1,179 @@
+<meta name="description" content="CVQR/1 — an open format that carries a short voice recording inside an ordinary QR code, using Codec2 and Base45. This page decodes and plays one entirely offline in your browser.">
+<title>CVQR/1 Decoder</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+  /* Palette is taken from what a fiber laser actually does to stainless:
+     the substrate's cool blue-grey, and the temper colours that appear as
+     heat input rises — straw, oxide amber, temper blue. */
+  :root {
+    --ground:  #e9ecee;
+    --panel:   #f7f8f9;
+    --sunk:    #dfe3e6;
+    --line:    #c6ccd1;
+    --ink:     #15191c;
+    --dim:     #5d686f;
+    --accent:  #a9631f;   /* oxide amber */
+    --verify:  #3d6389;   /* temper blue */
+    --alarm:   #9a3b30;
+    --sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #131619; --panel: #1a1e22; --sunk: #101315; --line: #2b3238;
+      --ink: #e4e8ea; --dim: #8d979e; --accent: #d29254; --verify: #7ba5cf; --alarm: #d98a7e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #131619; --panel: #1a1e22; --sunk: #101315; --line: #2b3238;
+    --ink: #e4e8ea; --dim: #8d979e; --accent: #d29254; --verify: #7ba5cf; --alarm: #d98a7e;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font: 400 15.5px/1.6 var(--sans);
+    padding: clamp(1.5rem, 5vw, 3.5rem) 1.25rem 5rem;
+  }
+  .wrap { max-width: 660px; margin: 0 auto; display: flex; flex-direction: column; gap: 2.25rem; }
+
+  /* --- masthead: the format identifier, set the way it is engraved --- */
+  header { display: flex; flex-direction: column; gap: .85rem; }
+  .mark {
+    font: 600 clamp(1.9rem, 7vw, 2.6rem)/1 var(--mono);
+    letter-spacing: .04em; margin: 0; text-wrap: balance;
+  }
+  .mark span { color: var(--accent); }
+  .rule { height: 1px; background: var(--line); }
+  .lede { margin: 0; color: var(--dim); max-width: 58ch; font-size: .96rem; }
+
+  h2 {
+    font: 500 .7rem/1 var(--mono); letter-spacing: .2em; text-transform: uppercase;
+    color: var(--dim); margin: 0 0 .75rem;
+  }
+  section { display: flex; flex-direction: column; }
+
+  textarea {
+    width: 100%; min-height: 6rem; resize: vertical; padding: .75rem .85rem;
+    background: var(--sunk); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 3px; font: 400 12.5px/1.6 var(--mono); word-break: break-all;
+  }
+  textarea::placeholder { color: var(--dim); opacity: .7; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; margin-top: .85rem; }
+  button {
+    font: 500 .875rem/1 var(--sans); padding: .65rem 1.15rem; border-radius: 3px;
+    border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer;
+    transition: background .12s, border-color .12s;
+  }
+  button:hover:not(:disabled) { border-color: var(--dim); }
+  button:disabled { opacity: .38; cursor: default; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  :root[data-theme="dark"] button.primary,
+  :root:not([data-theme="light"]) button.primary { color: #16191b; }
+  @media (prefers-color-scheme: light) { :root:not([data-theme="dark"]) button.primary { color: #fff; } }
+  button.primary:hover:not(:disabled) { filter: brightness(1.08); }
+
+  #drop {
+    border: 1px dashed var(--line); border-radius: 3px; padding: 1.6rem 1rem;
+    text-align: center; color: var(--dim); font-size: .92rem;
+    transition: border-color .12s, background .12s;
+  }
+  #drop.over { border-color: var(--accent); background: var(--panel); }
+  #drop label { color: var(--ink); border-bottom: 1px solid var(--accent); cursor: pointer; }
+  #file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  #status { color: var(--dim); font-size: .85rem; min-height: 1.3em; margin-top: .4rem; }
+
+  #result, #error {
+    border: 1px solid var(--line); border-left: 2px solid var(--verify);
+    border-radius: 3px; padding: 1.15rem 1.25rem; background: var(--panel);
+  }
+  #error { border-left-color: var(--alarm); }
+  #errorMsg { color: var(--alarm); font-weight: 500; }
+  #errorDetail { color: var(--dim); font-size: .89rem; margin-top: .45rem; }
+
+  /* instrument readout: labels left, values right, digits aligned */
+  #meta { display: grid; grid-template-columns: max-content 1fr; gap: .32rem 1.5rem; }
+  #meta .k {
+    font: 400 .7rem/1.75 var(--mono); letter-spacing: .13em; text-transform: uppercase;
+    color: var(--dim);
+  }
+  #meta .v { font: 400 .8rem/1.75 var(--mono); font-variant-numeric: tabular-nums; }
+  #meta .v:last-child { color: var(--verify); }
+
+  /* the waveform is the payoff — it draws itself in once the voice is recovered */
+  #wave {
+    display: block; width: 100%; height: 92px; margin: 1.2rem 0 .2rem;
+    color: var(--accent);
+    clip-path: inset(0 100% 0 0);
+  }
+  #wave.drawn { animation: sweep .75s cubic-bezier(.22,.61,.36,1) forwards; }
+  @keyframes sweep { to { clip-path: inset(0 0 0 0); } }
+  @media (prefers-reduced-motion: reduce) {
+    #wave { clip-path: none; }
+    #wave.drawn { animation: none; }
+  }
+
+  footer { border-top: 1px solid var(--line); padding-top: 1.2rem; color: var(--dim); font-size: .855rem; }
+  footer p { margin: 0 0 .6rem; max-width: 62ch; }
+  footer p:last-child { margin-bottom: 0; }
+  footer code { font: 400 .82em/1 var(--mono); color: var(--accent); }
+</style>
+
+<div class="wrap">
+
+  <header>
+    <h1 class="mark">CVQR<span>/1</span></h1>
+    <div class="rule"></div>
+    <p class="lede">A human voice, compressed to a few hundred bytes and carried inside an
+      ordinary QR code. Paste the payload or hand it a photograph of the code, and it
+      reconstructs the recording here in this tab — no upload, no account, and no network
+      once this page has loaded.</p>
+  </header>
+
+  <section>
+    <h2>Payload</h2>
+    <textarea id="paste" spellcheck="false" autocapitalize="off" autocomplete="off"
+              placeholder="CVQR1:"></textarea>
+    <div class="row"><button id="decodeText" class="primary">Decode</button></div>
+  </section>
+
+  <section>
+    <h2>Or read it from a picture</h2>
+    <div id="drop">
+      <input type="file" id="file" accept="image/*">
+      <label for="file">Choose a photo</label> — or drag one here, or paste an image.
+      <div id="status"></div>
+    </div>
+  </section>
+
+  <section id="error" hidden>
+    <div id="errorMsg"></div>
+    <div id="errorDetail" hidden></div>
+  </section>
+
+  <section id="result" hidden>
+    <h2>Recovered</h2>
+    <div id="meta"></div>
+    <canvas id="wave" aria-label="Waveform of the recovered recording"></canvas>
+    <div class="row">
+      <button id="play" class="primary" disabled>Play</button>
+      <button id="save">Save as WAV</button>
+    </div>
+  </section>
+
+  <footer>
+    <p>The payload is plain text beginning <code>CVQR1:</code> — Base45 (RFC&nbsp;9285)
+      wrapping a small binary capsule of Codec2 speech. Any generic QR scanner will show
+      you that text; this page turns it back into sound.</p>
+    <p>It is not encrypted. Anyone holding the code can hear what it says, which is the
+      intent. Integrity is checked with CRC-32 before anything plays, so a damaged payload
+      is refused rather than played back as noise.</p>
+    <p>Codec2 by David Rowe (LGPL-2.1), compiled to WebAssembly. QR reading by jsQR
+      (Apache-2.0). Both are bundled into this page rather than fetched from anywhere.</p>
+  </footer>
+
+</div>
+
+<!--SCRIPTS-->
