@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="CVQR/1 — an open format that carries a short voice recording inside an ordinary QR code, using Codec2 and Base45. This page decodes and plays one entirely offline in your browser.">
+<meta name="description" content="CVQR/1 - an open format that carries a short voice recording inside an ordinary QR code, using Codec2 and Base45. This page decodes and plays one entirely offline in your browser.">
 <title>CVQR/1 Decoder</title>
 <style>
   :root {
@@ -133,7 +133,7 @@
     <div>
       <h1>CVQR/1</h1>
       <p>A voice recording carried inside an ordinary QR code. Everything below
-         happens in this tab — nothing is uploaded, and once the page has loaded
+         happens in this tab - nothing is uploaded, and once the page has loaded
          it needs no network at all.</p>
     </div>
   </header>
@@ -154,7 +154,7 @@
     <div class="label"><span>Or a picture of one</span></div>
     <div id="drop">
       <input type="file" id="file" accept="image/*">
-      <label for="file">Choose a photo</label> — or drag one here, or paste an image.
+      <label for="file">Choose a photo</label> - or drag one here, or paste an image.
       <div id="status"></div>
     </div>
   </section>
@@ -181,7 +181,7 @@
   </section>
 
   <footer>
-    <p>The payload is plain text beginning <code>CVQR1:</code> — Base45 (RFC&nbsp;9285)
+    <p>The payload is plain text beginning <code>CVQR1:</code> - Base45 (RFC&nbsp;9285)
        wrapping a small binary capsule of Codec2 speech. It is not encrypted:
        anyone holding the code can hear it. That is the point.</p>
     <p>Integrity is checked with CRC-32 before anything plays. A damaged payload is
@@ -189,7 +189,7 @@
     <p>The format is specified in full at <a href="/FORMAT.md"><code>/FORMAT.md</code></a>,
        and the source is at
        <a href="https://github.com/alekm/cvqr" rel="noopener">github.com/alekm/cvqr</a>
-       — the spec, the encoder, and this page.</p>
+       - the spec, the encoder, and this page.</p>
     <p>Codec2 by David Rowe (LGPL-2.1). QR reading by jsQR (Apache-2.0).
        Both are bundled here, not fetched.</p>
   </footer>
@@ -10328,7 +10328,7 @@ else if (typeof exports === 'object')
 <script>
 /* ---- inlined from ./cvqr.js ---- */
 /*
- * cvqr.js — CVQR/1 reader. Mirrors tools/cvqr.py exactly; FORMAT.md is normative.
+ * cvqr.js - CVQR/1 reader. Mirrors tools/cvqr.py exactly; FORMAT.md is normative.
  * No dependencies, no network, no state.
  */
 'use strict';
@@ -10396,7 +10396,7 @@ const CVQR = (() => {
   function crc32(bytes, skipFrom, skipTo) {
     let c = 0xffffffff;
     for (let i = 0; i < bytes.length; i++) {
-      // bytes in [skipFrom, skipTo) are covered as zero — see FORMAT.md §5
+      // bytes in [skipFrom, skipTo) are covered as zero - see FORMAT.md §5
       const b = i >= skipFrom && i < skipTo ? 0 : bytes[i];
       c = CRC_TABLE[(c ^ b) & 0xff] ^ (c >>> 8);
     }
@@ -10471,14 +10471,14 @@ const CVQR = (() => {
 
   /*
    * SPACE IS A VALID BASE45 CHARACTER. Stripping whitespace to be tidy about
-   * pasted text silently corrupts any payload that contains one — which is
+   * pasted text silently corrupts any payload that contains one - which is
    * most of them. So only line breaks and tabs are removed here, because
    * those cannot appear in the alphabet and do appear when a payload is
    * wrapped across lines.
    *
    * Edge spaces are genuinely ambiguous: they may be data, or they may be a
    * sloppy selection. Try the string as-is first, and only fall back to
-   * trimming them if that fails — so real data always wins.
+   * trimming them if that fails - so real data always wins.
    */
   function fromText(text) {
     const cleaned = String(text).replace(/[\r\n\t]+/g, '');
@@ -10506,14 +10506,14 @@ if (typeof module !== 'undefined') module.exports = CVQR;
 </script>
 <script>
 /* ---- inlined from ./app.js ---- */
-/* app.js — CVQR/1 decoder UI. No network, no storage, no state that outlives the tab. */
+/* app.js - CVQR/1 decoder UI. No network, no storage, no state that outlives the tab. */
 'use strict';
 
 (() => {
   const $ = (id) => document.getElementById(id);
 
   /* A real recording rather than a synthetic vector: one spoken word, 488 ms.
-   * Encoded at 3200 bit/s — the highest mode the format defines — because this
+   * Encoded at 3200 bit/s - the highest mode the format defines - because this
    * is a demonstration and should sound like the format at its best. It lands
    * in the same QR version as a far longer clip at 1300 would, so it is also
    * an honest picture of the size involved. */
@@ -10587,7 +10587,7 @@ if (typeof module !== 'undefined') module.exports = CVQR;
     }
     // Normalise to the loudest peak. Codec2 output rarely approaches full
     // scale, and a waveform drawn against 32768 is a flat line with a wiggle
-    // in it — accurate, and useless as a picture of the sound.
+    // in it - accurate, and useless as a picture of the sound.
     let max = 0;
     for (let i = 0; i < peaks.length; i++) if (peaks[i] > max) max = peaks[i];
     const scale = max > 64 ? 1 / max : 0;      // near-silence stays flat
@@ -10703,7 +10703,7 @@ if (typeof module !== 'undefined') module.exports = CVQR;
   /* Decode a file to something drawable.
    *
    * createImageBitmap is the fast path, but Safari rejects some camera files
-   * through it — HEIC in particular — so fall back to an <img> and a blob URL,
+   * through it - HEIC in particular - so fall back to an <img> and a blob URL,
    * which goes through the platform's own image decoder and handles anything
    * the OS can display.
    */
@@ -10758,8 +10758,8 @@ if (typeof module !== 'undefined') module.exports = CVQR;
 
   /* Read a QR from an image, trying progressively harder before giving up.
    *
-   * Downscale FIRST. A phone photo is far larger than a QR reader needs — a
-   * 69-module symbol wants a few hundred pixels, not four thousand — and the
+   * Downscale FIRST. A phone photo is far larger than a QR reader needs - a
+   * 69-module symbol wants a few hundred pixels, not four thousand - and the
    * smaller pass is both quicker and less noisy, so it usually wins outright.
    * Full resolution is the fallback for a code that is small in frame, not the
    * opening move.
@@ -10845,7 +10845,7 @@ if (typeof module !== 'undefined') module.exports = CVQR;
   /* Web Audio, kept only as a fallback.
    *
    * Two reasons it is not the primary path on a phone. Safari refuses
-   * createBuffer below 22050 Hz, and this format is 8000 Hz by definition —
+   * createBuffer below 22050 Hz, and this format is 8000 Hz by definition -
    * so the buffer is built at the context's own rate and resampled here.
    * And iOS silences Web Audio with the hardware Ring/Silent switch, which a
    * media element is not subject to.
@@ -10917,7 +10917,7 @@ if (typeof module !== 'undefined') module.exports = CVQR;
       stopTracking();
       try {
         playViaWebAudio();
-        note('Playing. If you hear nothing, check the side switch — iPhones mute '
+        note('Playing. If you hear nothing, check the side switch - iPhones mute '
            + 'this kind of audio when the ringer is off.');
       } catch (e2) {
         note('This browser would not play the audio: '
