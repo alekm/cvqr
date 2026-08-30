@@ -4,7 +4,9 @@
 (() => {
   const $ = (id) => document.getElementById(id);
   let codecModule = null;   // lazily instantiated WASM
-  let audioCtx = null;
+  let audioCtx = null;      // fallback only; see play()
+  let audioEl = null;       // the media element that actually plays on phones
+  let wavUrl = null;        // object URL for the current capsule's WAV
   let current = null;       // { cap, pcm }
 
   /* ---------------------------------------------------------------- decode */
@@ -80,6 +82,10 @@
   }
 
   function present(cap, pcm) {
+    // A new capsule invalidates the previous WAV, or Play would replay the old one.
+    if (wavUrl) { URL.revokeObjectURL(wavUrl); wavUrl = null; }
+    note('');
+    $('play').textContent = 'Play';
     current = { cap, pcm };
     const [name, bits, , frameMs] = CVQR.MODES[cap.modeId];
     const rows = [
@@ -235,35 +241,99 @@
 
   /* ---------------------------------------------------------------- play */
 
-  function play() {
-    if (!current) return;
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    const { pcm, cap } = current;
-    const buf = audioCtx.createBuffer(1, pcm.length, cap.sampleRate);
-    const ch = buf.getChannelData(0);
-    for (let i = 0; i < pcm.length; i++) ch[i] = pcm[i] / 32768;
-    const src = audioCtx.createBufferSource();
-    src.buffer = buf;
-    src.connect(audioCtx.destination);
-    src.start();
-  }
-
-  function downloadWav() {
-    if (!current) return;
-    const { pcm, cap } = current;
+  /* PCM -> a complete WAV file. Shared by playback and by Save, so the bytes
+   * you hear and the bytes you keep are built by the same code. */
+  function wavBytes(pcm, sampleRate) {
     const hdr = new ArrayBuffer(44);
     const dv = new DataView(hdr);
     const wr = (o, s) => { for (let i = 0; i < s.length; i++) dv.setUint8(o + i, s.charCodeAt(i)); };
     const bytes = pcm.length * 2;
     wr(0, 'RIFF'); dv.setUint32(4, 36 + bytes, true); wr(8, 'WAVE');
     wr(12, 'fmt '); dv.setUint32(16, 16, true); dv.setUint16(20, 1, true);
-    dv.setUint16(22, 1, true); dv.setUint32(24, cap.sampleRate, true);
-    dv.setUint32(28, cap.sampleRate * 2, true); dv.setUint16(32, 2, true);
+    dv.setUint16(22, 1, true); dv.setUint32(24, sampleRate, true);
+    dv.setUint32(28, sampleRate * 2, true); dv.setUint16(32, 2, true);
     dv.setUint16(34, 16, true); wr(36, 'data'); dv.setUint32(40, bytes, true);
-    const blob = new Blob([hdr, pcm.buffer], { type: 'audio/wav' });
+    return new Blob([hdr, pcm.buffer], { type: 'audio/wav' });
+  }
+
+  function note(text, bad) {
+    const el = $('playNote');
+    el.textContent = text || '';
+    el.classList.toggle('bad', !!bad);
+    el.hidden = !text;
+  }
+
+  /* Web Audio, kept only as a fallback.
+   *
+   * Two reasons it is not the primary path on a phone. Safari refuses
+   * createBuffer below 22050 Hz, and this format is 8000 Hz by definition —
+   * so the buffer is built at the context's own rate and resampled here.
+   * And iOS silences Web Audio with the hardware Ring/Silent switch, which a
+   * media element is not subject to.
+   */
+  function playViaWebAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    const { pcm, cap } = current;
+    const rate = audioCtx.sampleRate || cap.sampleRate;
+    const ratio = rate / cap.sampleRate;
+    const n = Math.max(1, Math.round(pcm.length * ratio));
+    const buf = audioCtx.createBuffer(1, n, rate);
+    const ch = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) {
+      const t = i / ratio, i0 = Math.floor(t), f = t - i0;
+      const a = pcm[Math.min(i0, pcm.length - 1)] / 32768;
+      const b = pcm[Math.min(i0 + 1, pcm.length - 1)] / 32768;
+      ch[i] = a + (b - a) * f;
+    }
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(audioCtx.destination);
+    src.start();
+  }
+
+  /* Play through a media element carrying a WAV blob.
+   *
+   * This is the path that works on a phone: the platform decodes the WAV, so
+   * the 8 kHz rate is its problem rather than ours, and the audio goes out on
+   * the media channel where the silent switch does not reach it.
+   */
+  async function play() {
+    if (!current) return;
+    const btn = $('play');
+    try {
+      if (!audioEl) {
+        audioEl = new Audio();
+        audioEl.preload = 'auto';
+        audioEl.addEventListener('ended', () => { btn.textContent = 'Play'; });
+        audioEl.addEventListener('pause', () => { btn.textContent = 'Play'; });
+      }
+      if (!wavUrl) {
+        wavUrl = URL.createObjectURL(wavBytes(current.pcm, current.cap.sampleRate));
+        audioEl.src = wavUrl;
+      }
+      note('');
+      audioEl.currentTime = 0;
+      btn.textContent = 'Playing…';
+      await audioEl.play();
+    } catch (e) {
+      btn.textContent = 'Play';
+      try {
+        playViaWebAudio();
+        note('Playing. If you hear nothing, check the side switch — iPhones mute '
+           + 'this kind of audio when the ringer is off.');
+      } catch (e2) {
+        note('This browser would not play the audio: '
+           + String((e2 && e2.message) || e2)
+           + '. "Save as WAV" still works, and the file is a normal 8 kHz mono WAV.', true);
+      }
+    }
+  }
+
+  function downloadWav() {
+    if (!current) return;
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    a.href = URL.createObjectURL(wavBytes(current.pcm, current.cap.sampleRate));
     a.download = 'cvqr-recovered.wav';
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 10000);

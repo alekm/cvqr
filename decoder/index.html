@@ -58,6 +58,8 @@
   #meta .v:last-child { color: var(--ok); }
   #wave { display: block; width: 100%; height: 84px; margin: 1.1rem 0 .3rem; color: var(--steel); }
   #status { color: var(--dim); font-size: .85rem; min-height: 1.2em; }
+  #playNote { color: var(--dim); font-size: .85rem; margin-top: .7rem; }
+  #playNote.bad { color: var(--bad); }
   footer { border-top: 1px solid var(--line); margin-top: 2.5rem; padding-top: 1.1rem;
            color: var(--dim); font-size: .82rem; }
   footer code { font-family: var(--mono); color: var(--steel); }
@@ -103,6 +105,7 @@
       <button id="play" class="primary" disabled>Play</button>
       <button id="save">Save as WAV</button>
     </div>
+    <div id="playNote" role="status" hidden></div>
   </section>
 
   <footer>
