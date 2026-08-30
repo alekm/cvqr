@@ -34,6 +34,50 @@ Every layer is either an open published standard (Codec2, RFC 9285, ISO/IEC
 **Codec2** is the only widely-available open codec that produces intelligible
 speech at ~1 kbit/s. Nothing else fits seconds of voice into a QR code.
 
+That claim is worth showing, because the obvious objection is "why not Opus?"
+The constraint is not audio quality, it is that duration and module pitch are
+the same budget. A QR symbol at a fixed physical size grows more modules as
+the payload grows, and each module gets smaller; below roughly 0.5 mm a phone
+camera stops resolving them off engraved metal (§7). For a 47 mm symbol that
+floor lands at about 330 payload bytes.
+
+Measured on two speech recordings, 0.49 s and 1.88 s, as mean log-spectral
+distance over voiced frames only — lower is closer to the source:
+
+| Codec | bit/s | seconds in 210 bytes | distance (dB) |
+|---|---:|---:|---:|
+| Codec2 700C | 700 | 2.40 | 14.8 |
+| Codec2 1300 | 1300 | 1.29 | 12.7 |
+| Codec2 1600 | 1600 | 1.05 | 12.3 |
+| Codec2 3200 | 3200 | 0.53 | 12.1 |
+| Opus 3400 | 3400 | 0.49 | 13.5 |
+| Opus 6000 | 6000 | 0.28 | 10.4 |
+| Opus 12000 | 12000 | 0.14 | 7.1 |
+
+Opus is the better codec, and the better standard — RFC 9285's sibling RFC
+6716 carries a complete reference decoder inside the RFC itself, which is a
+stronger recovery story than Codec2 has. It simply does not go low enough.
+Below about 3.4 kbit/s it stops being coherent, and at that rate it is both
+worse than Codec2 3200 and holds a third of the audio Codec2 1300 does. There
+is no Opus configuration that reaches 1300 bit/s at all.
+
+Two other candidates, rejected for reasons that are not about quality:
+
+- **Neural codecs** (LPCNet, Lyra, and their successors) are dramatically
+  better at these rates. They are also disqualified here, because the decoder
+  *is* a set of trained weights. Weights cannot be reconstructed from a
+  published paper, so a neural CVQR would depend on a specific multi-megabyte
+  file surviving — exactly the dependency this format exists to avoid.
+- **MELPe** (STANAG 4591) beats Codec2 at 1200 and 2400 bit/s and is patent
+  encumbered and export controlled. Unusable for a specification placed in the
+  public domain.
+
+The measurement above is an objective proxy over two short samples, not a
+listening test, and the differences between the Codec2 modes from 1200 to 3200
+are small enough that it should not be read as a ranking among them. It
+establishes one thing only, and that is the thing in dispute: below roughly
+3 kbit/s, Codec2 has no open competition.
+
 **Base45** rather than Base64: its 45-character alphabet is exactly the QR
 alphanumeric character set, so the QR encoder can use alphanumeric mode
 (5.5 bits/char) rather than byte mode (8 bits/char). Base45 expands the data

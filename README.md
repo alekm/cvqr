@@ -17,6 +17,33 @@ format promises, and it is the one worth promising.
 The format does not encrypt. Anyone holding the code and a decoder can hear the
 recording.
 
+## Recovered 148 years later
+
+In 1860 Édouard-Léon Scott de Martinville recorded a few seconds of *Au Clair
+de la Lune* onto paper blackened with lampblack. His phonautograph was a
+diaphragm and a bristle that drew sound as a line on a rotating drum. He had no
+way to play it back and never intended to — the device existed to make sound
+visible, for study.
+
+The traces sat in a French archive until 2008, when the First Sounds collective
+and researchers at Lawrence Berkeley National Laboratory scanned them optically
+and turned the curve back into audio. Nothing from 1860 was needed but the paper
+and an understanding of how the mark had been made. No machine, no company, no
+running service.
+
+The first playback was wrong. It ran too fast, and the voice was taken for a
+woman or a child. A year later it was corrected to roughly half speed and turned
+out to be Scott himself. The trace had preserved the sound perfectly and carried
+nothing whatever about how fast to read it.
+
+That is why the CVQR/1 header is more than a payload length. Sample rate,
+channel count, bits per sample, frame count and duration are all written into
+the capsule (§5), because a recording that cannot state its own playback
+parameters is a recording that will eventually be played at the wrong speed by
+someone doing their best with it. The format is designed for the person holding
+a photograph of a code and nothing else, and that person deserves better than a
+guess.
+
 ## The decoder
 
 `deploy/index.html` is a single self-contained file — the Codec2 WASM, the QR
