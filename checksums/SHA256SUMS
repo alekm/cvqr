@@ -3,7 +3,7 @@ e540ae6173441c29c65ac8e3a3b8679b13d51e610b9182f9e9d162e0044a6c06  ./.gitignore
 5afd2719c9fe50aab1d73bfdd6c193264e349dd00e5c87d59c988a170e55d455  ./LICENSE
 9ebb6f82b7380a62ac74c5f0322c88e6744dedf2ebe1f54d6f088282b39844bf  ./LICENSES/codec2-LGPL-2.1.txt
 c6596eb7be8581c18be736c846fb9173b69eccf6ef94c5135893ec56bd92ba08  ./LICENSES/jsQR-Apache-2.0.txt
-695b92ae6cd368b5dad084c6ecfdc2e5c3ebc0b44829663aa7772b231d8bf2da  ./README.md
+125d0a40802508ed320fa4407595ddea27f43f487bcc0b567ca7d4dfe8ec437f  ./README.md
 05108ef0e0026a2c4f86bc4928f0d5d731e45e688101ccc382d2911ddd5de9ac  ./decoder/README.md
 5e5eaab805c80c463c052015be47c7ee119a5c0eef2917fbc35d3f0e274e494a  ./decoder/app.js
 15aa0222f018e8ff99f4cb5f03bdba58ac881feeee142e1582f8b85d7af9099b  ./decoder/artifact_template.html
@@ -26,6 +26,7 @@ ba8856c63f93102856b3d5e3147372710a11d818cdf6ac1ff0d2b9914cfb9c08  ./test-vectors
 c86217159b9fb6736395a44fc2e8804baf8074b8cfc0745a2633052c9b8896eb  ./test-vectors/vector1.hex
 29f4f742a062b870a21b463446f8b4beac67469ca8297879281c97ac933bcff1  ./test-vectors/vector1.txt
 b34d027783806e9c8926a33c734b7e6974e1b95be2df357eb325c886f59f8aa9  ./tools/bundle_decoder.py
+2b66afd4dfefee6ac2f3e3360df807b8a84959ed6242d981fbda1094c898bc94  ./tools/check_deploy.py
 072bf19bd3d5b16960db8341ffd9c6da46ac7f1d967ca5af3b2744bb5362c96d  ./tools/cvqr.py
 262f3be112236bbfbe018ea6f0e944fe6d6babd875aab6daf242b7ff87fa84a7  ./tools/decode_voice.py
 6e771f2cf8ec630e1539726f005ca9677676306760e2e0dd14fb27ba79eceebd  ./tools/encode_voice.py

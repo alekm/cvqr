@@ -63,6 +63,14 @@ decoder.
 `test-vectors/` holds the canonical capsule from FORMAT.md §9 — synthetic, 44
 bytes, no speech in it. An implementation that reproduces it is compatible.
 
+Once the site is live, `check_deploy.py` asserts the things that only exist when
+Cloudflare is serving it — MIME types, security headers, the 404, and whether the
+bytes on the wire are the bytes in git:
+
+```
+python3 tools/check_deploy.py https://cvqr.app
+```
+
 ## Notes that cost real time to discover
 
 **Space is a valid Base45 character.** Stripping whitespace from a pasted
@@ -103,6 +111,7 @@ tools/read_qr.py              scan an image back, with photo rehabilitation
 tools/make_coupon.py          parameter-sweep coupon plate for laser settings
 tools/bundle_decoder.py       decoder/ -> one self-contained html
 tools/selftest.py             adversarial checks
+tools/check_deploy.py         assert a live deployment is correct
 tools/independent_decode.py   spec-sufficiency proof
 decoder/                      editable decoder source
 release/cvqr-decoder.html     single-file build
