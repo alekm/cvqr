@@ -63,16 +63,22 @@ decoder.
 `test-vectors/` holds the canonical capsule from FORMAT.md §9 — synthetic, 44
 bytes, no speech in it. An implementation that reproduces it is compatible.
 
-`examples/` holds a real one: a recording of a single spoken word, 488 ms,
-159 characters of payload, with its QR image beside it. It is what the
-decoder's "Try an example" button plays, and it is what makes the end-to-end
-image check in `selftest.py` run in a fresh clone rather than skip. Rebuild it
-with:
+`examples/` holds a real one: a recording of a single spoken word, 488 ms, at
+two of the seven modes — 1300 for 159 characters of payload, and 3200 for 330.
+The decoder's "Try an example" button plays the 3200, since a demonstration
+should sound like the format at its best; `selftest.py` reads both QR images,
+which is what makes the end-to-end image check run in a fresh clone rather
+than skip. Rebuild with:
 
 ```
-python3 tools/encode_voice.py examples/hello.wav --mode 1300 --out examples/hello_1300
-python3 tools/make_qr.py examples/hello_1300.txt --ecc Q --out examples/hello_1300_Q
+python3 tools/encode_voice.py examples/hello.wav --mode 3200 --out examples/hello_3200
+python3 tools/make_qr.py examples/hello_3200.txt --ecc Q --out examples/hello_3200_Q
 ```
+
+Measured against the 8 kHz source by mean log-spectral distance, lower being
+closer: 700C 13.9 dB, 1200 11.6, 1300 11.7, 1400 11.7, 1600 11.3, 2400 11.5,
+3200 11.0. The interesting part of that table is not that 3200 wins — it is
+how flat 1200 through 3200 are, and how far 700C sits from all of them.
 
 `make_card.py` reads the engraved text from `card_text.txt` at the project root
 (`size|weight|text` per row, an empty text field being a spacer). That file is

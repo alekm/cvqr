@@ -113,7 +113,8 @@ refuses("prefix but junk", lambda: from_text("CVQR1:BB8"), "")
 print("\n[7] End-to-end: a QR image recovers its exact payload")
 # The example is committed, so this section actually runs in a fresh clone.
 # The stand-ins are part of the private artifact and skip when absent.
-CASES = [("hello 1300", ROOT / "examples/hello_1300.txt", ROOT / "examples/hello_1300_Q.png")]
+CASES = [(f"hello {m}", ROOT / f"examples/hello_{m}.txt", ROOT / f"examples/hello_{m}_Q.png")
+         for m in ("1300", "3200")]
 for m in ("700C", "1300"):
     CASES.append((f"stand-in {m}", ROOT / f"audio/encoded/standin_{m}.txt",
                   ROOT / f"qr/standin_{m}_Q.png"))

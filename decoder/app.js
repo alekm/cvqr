@@ -4,11 +4,12 @@
 (() => {
   const $ = (id) => document.getElementById(id);
 
-  /* A real recording rather than a synthetic vector: one spoken word, 488 ms,
-   * 159 characters of payload. It is here so that someone who arrives with
-   * nothing to scan can still hear what the format actually does — which is
-   * most of the argument for the format. */
-  const EXAMPLE = 'CVQR1:3N8SCAW503H0Z.3260000%A0C00X10YTSBA0X8VO7WEWFD%THTTBW9+-AYBN PCHUOFHDDNA.R5M7VJC2.*2B4E6K87K4/LA56J6-C$:UW16%QQ3:RDXUQT09S2 /7C7C$12G3776CTDEA49-1QT3R0-P';
+  /* A real recording rather than a synthetic vector: one spoken word, 488 ms.
+   * Encoded at 3200 bit/s — the highest mode the format defines — because this
+   * is a demonstration and should sound like the format at its best. It lands
+   * in the same QR version as a far longer clip at 1300 would, so it is also
+   * an honest picture of the size involved. */
+  const EXAMPLE = 'CVQR1:3N8SCAW50$*0Z.3260000%A0O00C40P 7JSF8OPVZDX*Q5GB.URO-CKH2R1VERU+*8C3K%9N$11Y$O2YJR38S29+-DQIR*Z3-7S37L0H24D3ZRR$4IW-BHZ2*RRSYLUJBNJ5JRR4*KGH3E05-PRL5LTG3:O67ES9%S273MP7JASG.P969WI4ODS%:9J7Q2J6BRRXP5F3ISH6QFW$TDOHHFMH9ZP2AU77I3+3DAQV/TF-HUD35*PP$H1XP4:I* P*6MH%11G6I%O/-PH9BQ0J.2S.J80 J%+6FMRLY9.ZJ.K5TNO-$HV42M/4BZU1RH6KAQDD';
   let codecModule = null;   // lazily instantiated WASM
   let audioCtx = null;      // fallback only; see play()
   let audioEl = null;       // the media element that actually plays on phones
