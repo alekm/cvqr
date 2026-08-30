@@ -4,6 +4,11 @@ A short voice recording carried inside an ordinary QR code — no server, no
 network, no account, and no dependency on any service that has to still exist
 when the code is read.
 
+**The decoder runs at [cvqr.app](https://cvqr.app).** It is one static HTML
+file: paste a payload or hand it a photograph, and it decodes and plays in the
+tab. Nothing is uploaded, and once the page has loaded it needs no network at
+all — which you can check by turning yours off.
+
 ```
 speech -> 8 kHz mono PCM -> Codec2 -> bit-packed capsule -> Base45 -> QR
 ```
@@ -55,7 +60,8 @@ python3 tools/bundle_decoder.py --out release/cvqr-decoder.html
 cp release/cvqr-decoder.html deploy/index.html
 ```
 
-Cloudflare Pages serves `deploy/` straight from this repository:
+Cloudflare Pages serves `deploy/` straight from this repository to
+<https://cvqr.app>:
 
 | Setting | Value |
 |---|---|
@@ -174,6 +180,15 @@ examples/                     a real recording, one word, with its QR
 
 ## Licensing
 
-Apache-2.0 for the code ([`LICENSE`](LICENSE)), CC0 for `FORMAT.md`, and Codec2
-remains LGPL-2.1 (`LICENSES/`). The Apache patent grant is the binding promise
-not to patent the format.
+Apache-2.0 for the code — the full text is in [`LICENSE`](LICENSE) rather than
+linked, since a project whose claim is that recovery needs no running service
+should not make its own licence depend on a page still being served. Section 3,
+the patent grant, is the substantive promise: the binding undertaking not to
+patent this format.
+
+[`NOTICE`](NOTICE) carries the copyright and the scope — what is Apache-2.0,
+why `FORMAT.md` is CC0 instead (a format nobody may copy into their own
+documentation is not an open format), and the third-party terms. Codec2 remains
+LGPL-2.1, and `decoder/vendor/BUILD.md` gives the upstream commit, compiler
+version and exact command, so a recipient can rebuild the WASM and substitute
+their own binary as that licence requires.

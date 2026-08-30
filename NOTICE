@@ -1,0 +1,38 @@
+CVQR/1
+Copyright 2026 Alek Murray
+
+Licensed under the Apache License, Version 2.0. The complete text is in
+LICENSE, in this repository, rather than only as a link to apache.org. A
+project whose entire claim is that recovery does not depend on a service still
+being up should not make its own licence depend on a web page still being
+served.
+
+The patent grant in section 3 of that licence is the substantive promise here:
+it is the binding undertaking not to patent this format, and it is why
+Apache-2.0 was chosen over a permissive licence that is shorter but silent on
+patents.
+
+---------------------------------------------------------------------------
+Scope, and the parts that are not Apache-2.0
+---------------------------------------------------------------------------
+
+Apache-2.0 covers the CVQR/1 tooling, the decoder application code, and the
+artwork generators in this repository.
+
+FORMAT.md is dedicated to the public domain under CC0 1.0. A file format that
+cannot be freely copied into someone else's documentation is not really an open
+format, and the entire purpose of CVQR/1 is that a stranger can reimplement it
+without asking anyone.
+
+Third-party components, unmodified, under their own terms:
+
+  Codec2 — LGPL-2.1 — David Rowe — github.com/drowe67/codec2
+    See LICENSES/codec2-LGPL-2.1.txt. The WebAssembly build shipped in
+    decoder/vendor/ is a compiled form of Codec2. LGPL-2.1 requires that a
+    recipient be able to modify and relink it: decoder/vendor/BUILD.md gives
+    the exact upstream commit, the exact compiler version, and the exact
+    command, so any recipient can rebuild it from source and substitute their
+    own binary.
+
+  jsQR — Apache-2.0 — Cosmo Wolfe — github.com/cozmo/jsQR
+    See LICENSES/jsQR-Apache-2.0.txt. Unmodified dist build.
