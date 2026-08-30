@@ -15,6 +15,8 @@
   let audioEl = null;       // the media element that actually plays on phones
   let wavUrl = null;        // object URL for the current capsule's WAV
   let current = null;       // { cap, pcm }
+  let peaks = null;         // cached waveform envelope
+  let rafId = null;         // playhead animation
 
   /* ---------------------------------------------------------------- decode */
 
@@ -64,28 +66,88 @@
     current = null;
   }
 
-  function drawWave(pcm) {
+  /* Peak envelope, one value per device pixel column. Cached because it is
+   * recomputed on every animation frame otherwise, and a phone will feel it. */
+  function computePeaks(pcm, cols) {
+    const peaks = new Float32Array(cols);
+    const step = pcm.length / cols;
+    for (let x = 0; x < cols; x++) {
+      const a = Math.floor(x * step), b = Math.min(pcm.length, Math.floor((x + 1) * step));
+      let peak = 0;
+      for (let i = a; i < b; i++) { const v = Math.abs(pcm[i]); if (v > peak) peak = v; }
+      peaks[x] = peak;
+    }
+    // Normalise to the loudest peak. Codec2 output rarely approaches full
+    // scale, and a waveform drawn against 32768 is a flat line with a wiggle
+    // in it — accurate, and useless as a picture of the sound.
+    let max = 0;
+    for (let i = 0; i < peaks.length; i++) if (peaks[i] > max) max = peaks[i];
+    const scale = max > 64 ? 1 / max : 0;      // near-silence stays flat
+    for (let i = 0; i < peaks.length; i++) peaks[i] *= scale;
+    return peaks;
+  }
+
+  /* progress is 0..1; everything left of it is drawn as played. */
+  function drawWave(progress) {
     const cv = $('wave');
     const dpr = window.devicePixelRatio || 1;
     const w = cv.clientWidth, h = cv.clientHeight;
-    cv.width = w * dpr; cv.height = h * dpr;
-    const g = cv.getContext('2d');
-    g.scale(dpr, dpr);
-    g.clearRect(0, 0, w, h);
-    g.strokeStyle = getComputedStyle(cv).color;
-    g.lineWidth = 1;
-    g.beginPath();
-    const step = Math.max(1, Math.floor(pcm.length / w));
-    for (let x = 0; x < w; x++) {
-      let peak = 0;
-      for (let i = x * step; i < (x + 1) * step && i < pcm.length; i++) {
-        peak = Math.max(peak, Math.abs(pcm[i]));
-      }
-      const a = (peak / 32768) * (h / 2) * 0.95;
-      g.moveTo(x + 0.5, h / 2 - a);
-      g.lineTo(x + 0.5, h / 2 + a);
+    if (!w || !h || !current) return;
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+      cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+      peaks = null;
     }
-    g.stroke();
+    if (!peaks || peaks.length !== Math.round(w)) peaks = computePeaks(current.pcm, Math.round(w));
+
+    const g = cv.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, h);
+    const mid = h / 2, head = (progress || 0) * w;
+    const css = getComputedStyle(document.documentElement);
+    const played = (css.getPropertyValue('--accent') || '#7fb2e5').trim();
+    const unplayed = (css.getPropertyValue('--faint') || '#5d666f').trim();
+
+    // baseline
+    g.strokeStyle = unplayed; g.globalAlpha = .35;
+    g.beginPath(); g.moveTo(0, mid + .5); g.lineTo(w, mid + .5); g.stroke();
+    g.globalAlpha = 1;
+
+    for (let x = 0; x < peaks.length; x++) {
+      const a = Math.max(0.75, peaks[x] * (h / 2) * 0.92);
+      g.fillStyle = x <= head ? played : unplayed;
+      g.fillRect(x, mid - a, 1, a * 2);
+    }
+    if (progress > 0 && progress < 1) {
+      g.fillStyle = played;
+      g.fillRect(Math.min(w - 1, head), 2, 1, h - 4);
+    }
+  }
+
+  function fmtTime(sec) {
+    if (!isFinite(sec) || sec < 0) sec = 0;
+    const m = Math.floor(sec / 60), s = sec - m * 60;
+    return m + ':' + (s < 10 ? '0' : '') + s.toFixed(2);
+  }
+
+  function setTimes(cur, total) {
+    $('tCur').textContent = fmtTime(cur);
+    $('tTot').textContent = fmtTime(total);
+  }
+
+  function stopTracking() {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  }
+
+  function track() {
+    stopTracking();
+    const step = () => {
+      if (!audioEl || audioEl.paused) return;
+      const d = audioEl.duration || 0;
+      drawWave(d ? audioEl.currentTime / d : 0);
+      setTimes(audioEl.currentTime, d);
+      rafId = requestAnimationFrame(step);
+    };
+    rafId = requestAnimationFrame(step);
   }
 
   function present(cap, pcm) {
@@ -102,13 +164,15 @@
       ['Audio', `${cap.sampleRate} Hz · ${cap.channels === 1 ? 'mono' : cap.channels + ' ch'} · ${cap.bitsPerSample}-bit`],
       ['Duration', `${(cap.durationMs / 1000).toFixed(2)} s`],
       ['Payload', `${cap.payload.length} bytes`],
-      ['Integrity', `CRC-32 ${cap.crc.toString(16).toUpperCase().padStart(8, '0')} — verified`],
     ];
     $('meta').innerHTML = rows
       .map(([k, v]) => `<div class="k">${k}</div><div class="v">${v}</div>`).join('');
     hide($('error'));
     show($('result'));
-    drawWave(pcm);
+    peaks = null;
+    drawWave(0);
+    setTimes(0, pcm.length / cap.sampleRate);
+    $('crcBadge').textContent = 'CRC-32 ' + cap.crc.toString(16).toUpperCase().padStart(8, '0');
     $('play').disabled = false;
     $('play').focus();
   }
@@ -308,12 +372,30 @@
   async function play() {
     if (!current) return;
     const btn = $('play');
+
+    // A second press stops it. A dead-looking control that ignores you is the
+    // same bug as a Play button that does nothing.
+    if (audioEl && !audioEl.paused) {
+      audioEl.pause();
+      return;
+    }
+
     try {
       if (!audioEl) {
         audioEl = new Audio();
         audioEl.preload = 'auto';
-        audioEl.addEventListener('ended', () => { btn.textContent = 'Play'; });
-        audioEl.addEventListener('pause', () => { btn.textContent = 'Play'; });
+        const reset = () => {
+          btn.textContent = 'Play';
+          stopTracking();
+          drawWave(0);
+          setTimes(0, audioEl.duration || current.pcm.length / current.cap.sampleRate);
+        };
+        audioEl.addEventListener('ended', reset);
+        audioEl.addEventListener('pause', () => {
+          btn.textContent = 'Play';
+          stopTracking();
+        });
+        audioEl.addEventListener('play', () => { btn.textContent = 'Stop'; track(); });
       }
       if (!wavUrl) {
         wavUrl = URL.createObjectURL(wavBytes(current.pcm, current.cap.sampleRate));
@@ -321,10 +403,10 @@
       }
       note('');
       audioEl.currentTime = 0;
-      btn.textContent = 'Playing…';
       await audioEl.play();
     } catch (e) {
       btn.textContent = 'Play';
+      stopTracking();
       try {
         playViaWebAudio();
         note('Playing. If you hear nothing, check the side switch — iPhones mute '
@@ -362,6 +444,34 @@
       if (e.target.files[0]) handleImage(e.target.files[0]);
     });
     $('play').addEventListener('click', play);
+
+    /* Click the waveform to seek. Only meaningful once a media element exists,
+     * so before the first play it just previews the position. */
+    $('wave').addEventListener('click', (e) => {
+      if (!current) return;
+      const r = e.currentTarget.getBoundingClientRect();
+      const p = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+      const total = current.pcm.length / current.cap.sampleRate;
+      if (audioEl && audioEl.duration) {
+        audioEl.currentTime = p * audioEl.duration;
+        drawWave(p);
+        setTimes(audioEl.currentTime, audioEl.duration);
+      } else {
+        drawWave(p);
+        setTimes(p * total, total);
+      }
+    });
+
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (!current) return;
+        peaks = null;
+        const d = audioEl && audioEl.duration ? audioEl.currentTime / audioEl.duration : 0;
+        drawWave(audioEl && !audioEl.paused ? d : 0);
+      }, 120);
+    });
     $('save').addEventListener('click', downloadWav);
 
     const drop = $('drop');

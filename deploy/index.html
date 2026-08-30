@@ -3,89 +3,155 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'unsafe-inline' 'wasm-unsafe-eval' blob:; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src blob:; connect-src data: blob:; worker-src blob:; form-action 'none'; base-uri 'none'">
 <meta name="description" content="CVQR/1 — an open format that carries a short voice recording inside an ordinary QR code, using Codec2 and Base45. This page decodes and plays one entirely offline in your browser.">
 <title>CVQR/1 Decoder</title>
 <style>
   :root {
-    --bg: #101215; --panel: #171a1e; --line: #262b31;
-    --ink: #e8eaec; --dim: #8b949e; --steel: #b8bcc0; --ok: #7fd18b; --bad: #e2857a;
-    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --bg:     #0d0f12;
+    --panel:  #14171b;
+    --raised: #1a1e23;
+    --line:   #242a31;
+    --line-2: #2f363e;
+    --ink:    #e9ecef;
+    --dim:    #8a939d;
+    --faint:  #5d666f;
+    --steel:  #b9bec4;
+    --accent: #7fb2e5;
+    --ok:     #7fd18b;
+    --bad:    #e58e82;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --r: 8px;
   }
   * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
   body {
     margin: 0; background: var(--bg); color: var(--ink);
-    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    padding: 2rem 1.25rem 4rem;
+    font: 15px/1.6 var(--sans);
+    padding: clamp(1.5rem, 5vw, 3.5rem) 1.15rem 5rem;
+    -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 720px; margin: 0 auto; }
-  header { border-bottom: 1px solid var(--line); padding-bottom: 1.25rem; margin-bottom: 1.75rem; }
-  h1 { font: 700 1.35rem/1.2 var(--mono); letter-spacing: .06em; margin: 0 0 .4rem; }
-  header p { margin: 0; color: var(--dim); font-size: .92rem; max-width: 52ch; }
-  h2 { font: 600 .72rem/1 var(--mono); letter-spacing: .18em; text-transform: uppercase;
-       color: var(--dim); margin: 0 0 .7rem; }
-  section { margin-bottom: 1.75rem; }
+  .wrap { max-width: 660px; margin: 0 auto; }
+
+  /* ---------------------------------------------------------------- header */
+  header { display: flex; gap: 1rem; align-items: flex-start;
+           padding-bottom: 1.5rem; border-bottom: 1px solid var(--line); margin-bottom: 2.25rem; }
+  .mark { flex: none; margin-top: .2rem; opacity: .85; }
+  h1 { font: 700 1.5rem/1.1 var(--mono); letter-spacing: .07em; margin: 0 0 .45rem; }
+  header p { margin: 0; color: var(--dim); font-size: .93rem; max-width: 46ch; }
+
+  /* -------------------------------------------------------------- sections */
+  section { margin-bottom: 1.5rem; }
+  .label { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem;
+           font: 600 .68rem/1 var(--mono); letter-spacing: .2em; text-transform: uppercase;
+           color: var(--faint); margin: 0 0 .8rem; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r);
+           padding: 1.15rem 1.2rem; }
+
+  /* ----------------------------------------------------------------- input */
   textarea {
-    width: 100%; min-height: 6.5rem; resize: vertical; padding: .7rem .8rem;
-    background: var(--panel); color: var(--ink); border: 1px solid var(--line);
-    border-radius: 6px; font: 12px/1.5 var(--mono); word-break: break-all;
+    display: block; width: 100%; min-height: 5.5rem; resize: vertical;
+    padding: .75rem .85rem; background: var(--bg); color: var(--ink);
+    border: 1px solid var(--line-2); border-radius: 6px;
+    font: 12px/1.6 var(--mono); word-break: break-all;
   }
-  textarea:focus, button:focus-visible, #drop:focus-within { outline: 2px solid #4a7fb5; outline-offset: 2px; }
-  .row { display: flex; gap: .6rem; flex-wrap: wrap; align-items: center; margin-top: .7rem; }
+  textarea::placeholder { color: var(--faint); }
+  .row { display: flex; gap: .55rem; flex-wrap: wrap; align-items: center; margin-top: .85rem; }
+
   button {
-    font: 600 .88rem/1 inherit; padding: .62rem 1.1rem; border-radius: 6px;
-    border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer;
+    font: 600 .875rem/1 var(--sans); padding: .66rem 1.05rem; border-radius: 6px;
+    border: 1px solid var(--line-2); background: var(--raised); color: var(--ink);
+    cursor: pointer; transition: background .12s, border-color .12s, opacity .12s;
   }
-  button:hover:not(:disabled) { border-color: #3a424a; background: #1d2126; }
-  button:disabled { opacity: .4; cursor: default; }
-  button.primary { background: var(--steel); color: #101215; border-color: var(--steel); }
-  button.primary:hover:not(:disabled) { background: #cdd1d4; }
-  #drop {
-    border: 1px dashed var(--line); border-radius: 6px; padding: 1.5rem 1rem; text-align: center;
-    color: var(--dim); font-size: .9rem; transition: border-color .12s, background .12s;
-  }
-  #drop.over { border-color: var(--steel); background: var(--panel); }
-  #drop label { color: var(--ink); text-decoration: underline; cursor: pointer; }
-  #file { position: absolute; width: 1px; height: 1px; opacity: 0; }
-  #result, #error { border: 1px solid var(--line); border-radius: 6px; padding: 1.1rem 1.2rem; background: var(--panel); }
-  #error { border-color: #4a2f2c; }
+  button:hover:not(:disabled) { background: #212730; border-color: #3b444e; }
+  button:active:not(:disabled) { transform: translateY(0.5px); }
+  button:disabled { opacity: .38; cursor: default; }
+  button.primary { background: var(--steel); color: #0d0f12; border-color: var(--steel); font-weight: 700; }
+  button.primary:hover:not(:disabled) { background: #d3d7db; border-color: #d3d7db; }
+  :is(textarea, button, [tabindex]):focus-visible,
+  #drop:focus-within { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ------------------------------------------------------------------ drop */
+  #drop { border: 1px dashed var(--line-2); border-radius: var(--r);
+          padding: 1.25rem 1rem; text-align: center; color: var(--dim); font-size: .9rem;
+          transition: border-color .12s, background .12s; }
+  #drop.over { border-color: var(--accent); background: var(--raised); }
+  #drop label { color: var(--ink); font-weight: 600; cursor: pointer;
+                border-bottom: 1px solid var(--line-2); }
+  #drop label:hover { border-bottom-color: var(--steel); }
+  #file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  #status { color: var(--faint); font-size: .82rem; min-height: 0; margin-top: .35rem;
+            font-family: var(--mono); }
+
+  /* --------------------------------------------------------------- outcome */
+  #error { border: 1px solid #4a302c; background: #191413; border-radius: var(--r);
+           padding: 1.05rem 1.15rem; }
   #errorMsg { color: var(--bad); font-weight: 600; }
-  #errorDetail { color: var(--dim); font-size: .88rem; margin-top: .4rem; }
-  #meta { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1.4rem; font-size: .88rem; }
-  #meta .k { color: var(--dim); font: .78rem/1.6 var(--mono); letter-spacing: .06em; text-transform: uppercase; }
-  #meta .v { font-family: var(--mono); font-size: .82rem; }
-  #meta .v:last-child { color: var(--ok); }
-  #wave { display: block; width: 100%; height: 84px; margin: 1.1rem 0 .3rem; color: var(--steel); }
-  #status { color: var(--dim); font-size: .85rem; min-height: 1.2em; }
-  #playNote { color: var(--dim); font-size: .85rem; margin-top: .7rem; }
+  #errorDetail { color: var(--dim); font-size: .88rem; margin-top: .45rem; }
+
+  .badge { font: 600 .66rem/1 var(--mono); letter-spacing: .12em; color: var(--ok);
+           border: 1px solid #2c4433; background: #131a15; border-radius: 999px;
+           padding: .32rem .6rem; white-space: nowrap; }
+
+  #meta { display: grid; grid-template-columns: max-content 1fr; gap: 0; font-size: .85rem; }
+  #meta > div { padding: .42rem 0; border-bottom: 1px solid var(--line); }
+  #meta > div:nth-last-child(-n+2) { border-bottom: 0; }
+  #meta .k { color: var(--faint); font: .68rem/1.7 var(--mono);
+             letter-spacing: .14em; text-transform: uppercase; padding-right: 1.5rem; }
+  #meta .v { font-family: var(--mono); font-size: .82rem; color: var(--ink); }
+
+  /* -------------------------------------------------------------- waveform */
+  .transport { margin-top: 1.15rem; }
+  #wave { display: block; width: 100%; height: 104px; cursor: pointer;
+          border-radius: 5px; background: var(--bg); border: 1px solid var(--line); }
+  .times { display: flex; justify-content: space-between; margin-top: .45rem;
+           font: .72rem/1 var(--mono); color: var(--faint); letter-spacing: .05em; }
+  #playNote { color: var(--dim); font-size: .84rem; margin-top: .8rem; line-height: 1.5; }
   #playNote.bad { color: var(--bad); }
-  footer { border-top: 1px solid var(--line); margin-top: 2.5rem; padding-top: 1.1rem;
-           color: var(--dim); font-size: .82rem; }
+
+  /* -------------------------------------------------------------- footer */
+  footer { border-top: 1px solid var(--line); margin-top: 3rem; padding-top: 1.35rem;
+           color: var(--faint); font-size: .82rem; line-height: 1.65; }
   footer code { font-family: var(--mono); color: var(--steel); }
-  footer p { margin: 0 0 .55rem; }
+  footer p { margin: 0 0 .6rem; }
+  footer p:last-child { margin-bottom: 0; }
+  footer a { color: var(--dim); }
+
+  @media (max-width: 420px) {
+    #meta { grid-template-columns: 1fr; gap: 0; }
+    #meta > div { border-bottom: 0; padding: .16rem 0; }
+    #meta .v { padding-bottom: .5rem; border-bottom: 1px solid var(--line); }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
 <div class="wrap">
 
   <header>
-    <h1>CVQR/1</h1>
-    <p>A voice recording carried inside an ordinary QR code. Everything below happens
-       in this tab — nothing is uploaded, and once the page has loaded it needs no
-       network at all.</p>
+    <svg class="mark" width="34" height="34" viewBox="0 0 9 9" aria-hidden="true" fill="currentColor" shape-rendering="crispEdges"><rect x="0" y="0" width="1" height="1"/><rect x="0" y="1" width="1" height="1"/><rect x="0" y="2" width="1" height="1"/><rect x="0" y="6" width="1" height="1"/><rect x="0" y="7" width="1" height="1"/><rect x="0" y="8" width="1" height="1"/><rect x="1" y="0" width="1" height="1"/><rect x="1" y="1" width="1" height="1"/><rect x="1" y="2" width="1" height="1"/><rect x="1" y="4" width="1" height="1"/><rect x="1" y="6" width="1" height="1"/><rect x="1" y="7" width="1" height="1"/><rect x="1" y="8" width="1" height="1"/><rect x="2" y="0" width="1" height="1"/><rect x="2" y="1" width="1" height="1"/><rect x="2" y="2" width="1" height="1"/><rect x="2" y="6" width="1" height="1"/><rect x="2" y="7" width="1" height="1"/><rect x="2" y="8" width="1" height="1"/><rect x="3" y="4" width="1" height="1"/><rect x="4" y="1" width="1" height="1"/><rect x="4" y="3" width="1" height="1"/><rect x="4" y="5" width="1" height="1"/><rect x="4" y="7" width="1" height="1"/><rect x="5" y="2" width="1" height="1"/><rect x="5" y="4" width="1" height="1"/><rect x="5" y="8" width="1" height="1"/><rect x="6" y="0" width="1" height="1"/><rect x="6" y="1" width="1" height="1"/><rect x="6" y="2" width="1" height="1"/><rect x="6" y="5" width="1" height="1"/><rect x="6" y="8" width="1" height="1"/><rect x="7" y="0" width="1" height="1"/><rect x="7" y="1" width="1" height="1"/><rect x="7" y="2" width="1" height="1"/><rect x="7" y="4" width="1" height="1"/><rect x="7" y="6" width="1" height="1"/><rect x="8" y="0" width="1" height="1"/><rect x="8" y="1" width="1" height="1"/><rect x="8" y="2" width="1" height="1"/><rect x="8" y="7" width="1" height="1"/></svg>
+    <div>
+      <h1>CVQR/1</h1>
+      <p>A voice recording carried inside an ordinary QR code. Everything below
+         happens in this tab — nothing is uploaded, and once the page has loaded
+         it needs no network at all.</p>
+    </div>
   </header>
 
   <section>
-    <h2>Paste the payload</h2>
-    <textarea id="paste" spellcheck="false" autocapitalize="off" autocomplete="off"
-              placeholder="CVQR1:…"></textarea>
-    <div class="row"><button id="decodeText" class="primary">Decode</button>
-      <button id="example">Try an example</button></div>
+    <div class="label"><span>Payload</span></div>
+    <div class="panel">
+      <textarea id="paste" spellcheck="false" autocapitalize="off" autocorrect="off"
+                autocomplete="off" placeholder="CVQR1:…"></textarea>
+      <div class="row">
+        <button id="decodeText" class="primary">Decode</button>
+        <button id="example">Try an example</button>
+      </div>
+    </div>
   </section>
 
   <section>
-    <h2>Or read it from a picture</h2>
+    <div class="label"><span>Or a picture of one</span></div>
     <div id="drop">
       <input type="file" id="file" accept="image/*">
       <label for="file">Choose a photo</label> — or drag one here, or paste an image.
@@ -99,14 +165,19 @@
   </section>
 
   <section id="result" hidden>
-    <h2>Recovered</h2>
-    <div id="meta"></div>
-    <canvas id="wave" aria-label="Waveform of the recovered audio"></canvas>
-    <div class="row">
-      <button id="play" class="primary" disabled>Play</button>
-      <button id="save">Save as WAV</button>
+    <div class="label"><span>Recovered</span><span class="badge" id="crcBadge">CRC-32 VERIFIED</span></div>
+    <div class="panel">
+      <div id="meta"></div>
+      <div class="transport">
+        <canvas id="wave" aria-label="Waveform of the recovered audio"></canvas>
+        <div class="times"><span id="tCur">0:00.00</span><span id="tTot">0:00.00</span></div>
+      </div>
+      <div class="row">
+        <button id="play" class="primary" disabled>Play</button>
+        <button id="save">Save as WAV</button>
+      </div>
+      <div id="playNote" role="status" hidden></div>
     </div>
-    <div id="playNote" role="status" hidden></div>
   </section>
 
   <footer>
@@ -115,12 +186,12 @@
        anyone holding the code can hear it. That is the point.</p>
     <p>Integrity is checked with CRC-32 before anything plays. A damaged payload is
        refused rather than played as noise.</p>
-    <p>Codec2 by David Rowe (LGPL-2.1). QR reading by jsQR (Apache-2.0).
+    <p>The format is specified in full at <a href="/FORMAT.md"><code>/FORMAT.md</code></a>.
+       Codec2 by David Rowe (LGPL-2.1). QR reading by jsQR (Apache-2.0).
        Both are bundled here, not fetched.</p>
   </footer>
 
 </div>
-
 <script>
 /* ---- inlined from ./vendor/jsQR.js ---- */
 (function webpackUniversalModuleDefinition(root, factory) {
@@ -10449,6 +10520,8 @@ if (typeof module !== 'undefined') module.exports = CVQR;
   let audioEl = null;       // the media element that actually plays on phones
   let wavUrl = null;        // object URL for the current capsule's WAV
   let current = null;       // { cap, pcm }
+  let peaks = null;         // cached waveform envelope
+  let rafId = null;         // playhead animation
 
   /* ---------------------------------------------------------------- decode */
 
@@ -10498,28 +10571,88 @@ if (typeof module !== 'undefined') module.exports = CVQR;
     current = null;
   }
 
-  function drawWave(pcm) {
+  /* Peak envelope, one value per device pixel column. Cached because it is
+   * recomputed on every animation frame otherwise, and a phone will feel it. */
+  function computePeaks(pcm, cols) {
+    const peaks = new Float32Array(cols);
+    const step = pcm.length / cols;
+    for (let x = 0; x < cols; x++) {
+      const a = Math.floor(x * step), b = Math.min(pcm.length, Math.floor((x + 1) * step));
+      let peak = 0;
+      for (let i = a; i < b; i++) { const v = Math.abs(pcm[i]); if (v > peak) peak = v; }
+      peaks[x] = peak;
+    }
+    // Normalise to the loudest peak. Codec2 output rarely approaches full
+    // scale, and a waveform drawn against 32768 is a flat line with a wiggle
+    // in it — accurate, and useless as a picture of the sound.
+    let max = 0;
+    for (let i = 0; i < peaks.length; i++) if (peaks[i] > max) max = peaks[i];
+    const scale = max > 64 ? 1 / max : 0;      // near-silence stays flat
+    for (let i = 0; i < peaks.length; i++) peaks[i] *= scale;
+    return peaks;
+  }
+
+  /* progress is 0..1; everything left of it is drawn as played. */
+  function drawWave(progress) {
     const cv = $('wave');
     const dpr = window.devicePixelRatio || 1;
     const w = cv.clientWidth, h = cv.clientHeight;
-    cv.width = w * dpr; cv.height = h * dpr;
-    const g = cv.getContext('2d');
-    g.scale(dpr, dpr);
-    g.clearRect(0, 0, w, h);
-    g.strokeStyle = getComputedStyle(cv).color;
-    g.lineWidth = 1;
-    g.beginPath();
-    const step = Math.max(1, Math.floor(pcm.length / w));
-    for (let x = 0; x < w; x++) {
-      let peak = 0;
-      for (let i = x * step; i < (x + 1) * step && i < pcm.length; i++) {
-        peak = Math.max(peak, Math.abs(pcm[i]));
-      }
-      const a = (peak / 32768) * (h / 2) * 0.95;
-      g.moveTo(x + 0.5, h / 2 - a);
-      g.lineTo(x + 0.5, h / 2 + a);
+    if (!w || !h || !current) return;
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+      cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+      peaks = null;
     }
-    g.stroke();
+    if (!peaks || peaks.length !== Math.round(w)) peaks = computePeaks(current.pcm, Math.round(w));
+
+    const g = cv.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, h);
+    const mid = h / 2, head = (progress || 0) * w;
+    const css = getComputedStyle(document.documentElement);
+    const played = (css.getPropertyValue('--accent') || '#7fb2e5').trim();
+    const unplayed = (css.getPropertyValue('--faint') || '#5d666f').trim();
+
+    // baseline
+    g.strokeStyle = unplayed; g.globalAlpha = .35;
+    g.beginPath(); g.moveTo(0, mid + .5); g.lineTo(w, mid + .5); g.stroke();
+    g.globalAlpha = 1;
+
+    for (let x = 0; x < peaks.length; x++) {
+      const a = Math.max(0.75, peaks[x] * (h / 2) * 0.92);
+      g.fillStyle = x <= head ? played : unplayed;
+      g.fillRect(x, mid - a, 1, a * 2);
+    }
+    if (progress > 0 && progress < 1) {
+      g.fillStyle = played;
+      g.fillRect(Math.min(w - 1, head), 2, 1, h - 4);
+    }
+  }
+
+  function fmtTime(sec) {
+    if (!isFinite(sec) || sec < 0) sec = 0;
+    const m = Math.floor(sec / 60), s = sec - m * 60;
+    return m + ':' + (s < 10 ? '0' : '') + s.toFixed(2);
+  }
+
+  function setTimes(cur, total) {
+    $('tCur').textContent = fmtTime(cur);
+    $('tTot').textContent = fmtTime(total);
+  }
+
+  function stopTracking() {
+    if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+  }
+
+  function track() {
+    stopTracking();
+    const step = () => {
+      if (!audioEl || audioEl.paused) return;
+      const d = audioEl.duration || 0;
+      drawWave(d ? audioEl.currentTime / d : 0);
+      setTimes(audioEl.currentTime, d);
+      rafId = requestAnimationFrame(step);
+    };
+    rafId = requestAnimationFrame(step);
   }
 
   function present(cap, pcm) {
@@ -10536,13 +10669,15 @@ if (typeof module !== 'undefined') module.exports = CVQR;
       ['Audio', `${cap.sampleRate} Hz · ${cap.channels === 1 ? 'mono' : cap.channels + ' ch'} · ${cap.bitsPerSample}-bit`],
       ['Duration', `${(cap.durationMs / 1000).toFixed(2)} s`],
       ['Payload', `${cap.payload.length} bytes`],
-      ['Integrity', `CRC-32 ${cap.crc.toString(16).toUpperCase().padStart(8, '0')} — verified`],
     ];
     $('meta').innerHTML = rows
       .map(([k, v]) => `<div class="k">${k}</div><div class="v">${v}</div>`).join('');
     hide($('error'));
     show($('result'));
-    drawWave(pcm);
+    peaks = null;
+    drawWave(0);
+    setTimes(0, pcm.length / cap.sampleRate);
+    $('crcBadge').textContent = 'CRC-32 ' + cap.crc.toString(16).toUpperCase().padStart(8, '0');
     $('play').disabled = false;
     $('play').focus();
   }
@@ -10742,12 +10877,30 @@ if (typeof module !== 'undefined') module.exports = CVQR;
   async function play() {
     if (!current) return;
     const btn = $('play');
+
+    // A second press stops it. A dead-looking control that ignores you is the
+    // same bug as a Play button that does nothing.
+    if (audioEl && !audioEl.paused) {
+      audioEl.pause();
+      return;
+    }
+
     try {
       if (!audioEl) {
         audioEl = new Audio();
         audioEl.preload = 'auto';
-        audioEl.addEventListener('ended', () => { btn.textContent = 'Play'; });
-        audioEl.addEventListener('pause', () => { btn.textContent = 'Play'; });
+        const reset = () => {
+          btn.textContent = 'Play';
+          stopTracking();
+          drawWave(0);
+          setTimes(0, audioEl.duration || current.pcm.length / current.cap.sampleRate);
+        };
+        audioEl.addEventListener('ended', reset);
+        audioEl.addEventListener('pause', () => {
+          btn.textContent = 'Play';
+          stopTracking();
+        });
+        audioEl.addEventListener('play', () => { btn.textContent = 'Stop'; track(); });
       }
       if (!wavUrl) {
         wavUrl = URL.createObjectURL(wavBytes(current.pcm, current.cap.sampleRate));
@@ -10755,10 +10908,10 @@ if (typeof module !== 'undefined') module.exports = CVQR;
       }
       note('');
       audioEl.currentTime = 0;
-      btn.textContent = 'Playing…';
       await audioEl.play();
     } catch (e) {
       btn.textContent = 'Play';
+      stopTracking();
       try {
         playViaWebAudio();
         note('Playing. If you hear nothing, check the side switch — iPhones mute '
@@ -10796,6 +10949,34 @@ if (typeof module !== 'undefined') module.exports = CVQR;
       if (e.target.files[0]) handleImage(e.target.files[0]);
     });
     $('play').addEventListener('click', play);
+
+    /* Click the waveform to seek. Only meaningful once a media element exists,
+     * so before the first play it just previews the position. */
+    $('wave').addEventListener('click', (e) => {
+      if (!current) return;
+      const r = e.currentTarget.getBoundingClientRect();
+      const p = Math.min(1, Math.max(0, (e.clientX - r.left) / r.width));
+      const total = current.pcm.length / current.cap.sampleRate;
+      if (audioEl && audioEl.duration) {
+        audioEl.currentTime = p * audioEl.duration;
+        drawWave(p);
+        setTimes(audioEl.currentTime, audioEl.duration);
+      } else {
+        drawWave(p);
+        setTimes(p * total, total);
+      }
+    });
+
+    let resizeTimer = null;
+    window.addEventListener('resize', () => {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (!current) return;
+        peaks = null;
+        const d = audioEl && audioEl.duration ? audioEl.currentTime / audioEl.duration : 0;
+        drawWave(audioEl && !audioEl.paused ? d : 0);
+      }, 120);
+    });
     $('save').addEventListener('click', downloadWav);
 
     const drop = $('drop');
